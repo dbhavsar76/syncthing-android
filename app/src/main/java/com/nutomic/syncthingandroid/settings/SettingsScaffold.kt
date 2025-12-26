@@ -86,9 +86,10 @@ fun SettingsScaffold(
         },
         content = { paddingValues ->
             Column(
-                modifier = Modifier.padding(paddingValues)
+                modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .fillMaxSize(),
+                    .fillMaxSize()
+                    .padding(paddingValues),
                 content = content,
             )
         },

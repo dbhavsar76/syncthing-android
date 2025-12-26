@@ -2,9 +2,6 @@ package com.nutomic.syncthingandroid.settings
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
-import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.runtime.toMutableStateList
@@ -55,41 +52,45 @@ fun rememberSettingsNavBackStack(startDestination: SettingsRoute): NavBackStack<
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsNavDisplay(
-    startDestination: SettingsRoute = SettingsRoute.Root
+    startDestination: SettingsRoute = SettingsRoute.Root,
+    onFinishActivity: () -> Unit = {}
 ) {
-
     val backStack = rememberSettingsNavBackStack(startDestination)
-    val listDetailSceneStrategy = rememberListDetailSceneStrategy<SettingsRoute>()
+    val onBack: () -> Unit = {
+        if (backStack.size == 1) {
+            onFinishActivity()
+        } else {
+            backStack.removeLastOrNull()
+        }
+    }
 
     NavDisplay(
         backStack = backStack,
-        // TODO: fix crash on back from settings root
-        onBack = { backStack.removeLastOrNull() },
-        entryProvider = settingsNavEntryProvider(backStack),
-        sceneStrategy = listDetailSceneStrategy,
+        entryProvider = settingsNavEntryProvider(backStack, onBack),
+        onBack = onBack,
     )
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 fun settingsNavEntryProvider(
     backstack: NavBackStack<SettingsRoute>,
+    onBack: () -> Unit,
 ) = entryProvider<SettingsRoute>(
     fallback = { key ->
-        NavEntry<SettingsRoute>(key, metadata = ListDetailSceneStrategy.detailPane()) { key ->
+        NavEntry<SettingsRoute>(key) { key ->
             Text("$key")
         }
     }
 ) {
-    settingsRootEntry(backstack)
-    settingsRunConditionsEntry(backstack)
-    settingsUserInterfaceEntry(backstack)
-    settingsBehaviorEntry(backstack)
-    settingsSyncthingOptionsEntry(backstack)
-    settingsImportExportEntry(backstack)
-    settingsTroubleshootingEntry(backstack)
-    settingsExperimentalEntry(backstack)
-    settingsAboutEntry(backstack)
+    settingsRootEntry(backstack, onBack)
+    settingsRunConditionsEntry(backstack, onBack)
+    settingsUserInterfaceEntry(backstack, onBack)
+    settingsBehaviorEntry(backstack, onBack)
+    settingsSyncthingOptionsEntry(backstack, onBack)
+    settingsImportExportEntry(backstack, onBack)
+    settingsTroubleshootingEntry(backstack, onBack)
+    settingsExperimentalEntry(backstack, onBack)
+    settingsAboutEntry(backstack, onBack)
 }

@@ -13,7 +13,9 @@ class SettingsActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ApplicationTheme {
-                SettingsNavDisplay()
+                SettingsNavDisplay(
+                    onFinishActivity = { finish() }
+                )
             }
         }
     }

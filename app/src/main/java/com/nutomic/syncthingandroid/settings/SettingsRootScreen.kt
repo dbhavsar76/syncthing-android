@@ -2,28 +2,29 @@ package com.nutomic.syncthingandroid.settings
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import com.nutomic.syncthingandroid.R
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
-fun EntryProviderScope<SettingsRoute>.settingsRootEntry(backstack: NavBackStack<SettingsRoute>) {
-    entry<SettingsRoute.Root>(
-        metadata = ListDetailSceneStrategy.listPane()
-    ) {
-        SettingsRootScreen(backstack)
+fun EntryProviderScope<SettingsRoute>.settingsRootEntry(
+    backstack: NavBackStack<SettingsRoute>,
+    onBack: () -> Unit
+) {
+    entry<SettingsRoute.Root> {
+        SettingsRootScreen(backstack, onBack)
     }
 }
 
 @Composable
-fun SettingsRootScreen(backstack: NavBackStack<SettingsRoute>) {
+fun SettingsRootScreen(
+    backstack: NavBackStack<SettingsRoute>,
+    onBack: () -> Unit = {},
+) {
     SettingsScaffold(
         title = stringResource(R.string.settings_title),
-        onBack = { backstack.removeLastOrNull() }
+        onBack = onBack,
     ) {
         TextButton(onClick = { backstack.add(SettingsRoute.RunConditions) }) {
             Text("RunConditions")
