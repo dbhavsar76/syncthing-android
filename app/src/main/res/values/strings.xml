@@ -447,6 +447,10 @@
     <string name="settings_title">Settings</string>
 
     <string name="category_run_conditions">Run Conditions</string>
+    <string name="category_wifi">Wi-Fi</string>
+    <string name="category_mobile_data">Mobile Data</string>
+    <string name="category_battery">Battery</string>
+    <string name="category_schedule">Schedule</string>
 
     <string name="category_user_interface">User Interface</string>
 

@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.AnnotatedString
 import androidx.navigation3.runtime.EntryProviderScope
 import com.nutomic.syncthingandroid.R
 import me.zhanghai.compose.preference.ListPreference
@@ -36,7 +36,7 @@ fun SettingsUserInterfaceScreen() {
             title = { Text(stringResource(R.string.preference_app_theme_title)) },
             state = theme,
             values = themeValues.toList(),
-            valueToText = { value -> buildAnnotatedString { append(themeNames[themeValues.indexOf(value)]) } }
+            valueToText = { value -> AnnotatedString(themeNames[themeValues.indexOf(value)]) }
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.expert_mode_title)) },
