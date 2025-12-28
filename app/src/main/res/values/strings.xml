@@ -451,6 +451,9 @@
     <string name="category_mobile_data">Mobile Data</string>
     <string name="category_battery">Battery</string>
     <string name="category_schedule">Schedule</string>
+    <string name="category_general">General</string>
+    <string name="category_connections">Connections</string>
+    <string name="category_advanced">Advanced</string>
 
     <string name="category_user_interface">User Interface</string>
 
