@@ -1,5 +1,6 @@
 package com.nutomic.syncthingandroid.settings
 
+import android.util.Log
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -42,6 +43,27 @@ sealed interface SettingsRoute : NavKey {
     @Serializable
     data object About : SettingsRoute
 
+
+    companion object {
+        const val TAG = "SettingsRoute"
+
+        // Use these strings to open particular screen directly
+        fun fromString(route: String?): SettingsRoute = when (route) {
+            "RunConditions" -> RunConditions
+            "UserInterface" -> UserInterface
+            "Behavior" -> Behavior
+            "SyncthingOptions" -> SyncthingOptions
+            "ImportExport" -> ImportExport
+            "Troubleshooting" -> Troubleshooting
+            "Experimental" -> Experimental
+            "About" -> About
+            "Root" -> Root
+            else -> {
+                Log.d(TAG, "Unknown settings path provided: $route. Defaulting to Root.")
+                Root
+            }
+        }
+    }
 }
 
 interface Navigator<T: NavKey> {

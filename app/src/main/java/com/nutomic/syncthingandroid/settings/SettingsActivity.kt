@@ -11,13 +11,21 @@ class SettingsActivity : SyncthingActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val routeStr = intent.getStringExtra(EXTRA_START_DESTINATION)
+        val startDestination: SettingsRoute = SettingsRoute.fromString(routeStr)
+
         setContent {
             ApplicationTheme {
                 SettingsNavDisplay(
-                    onFinishActivity = { finish() }
+                    startDestination = startDestination,
+                    onFinishActivity = { finish() },
                 )
             }
         }
     }
 
+    companion object {
+        const val EXTRA_START_DESTINATION = "com.nutomic.syncthingandroid.settings.EXTRA_START_DESTINATION"
+    }
 }
