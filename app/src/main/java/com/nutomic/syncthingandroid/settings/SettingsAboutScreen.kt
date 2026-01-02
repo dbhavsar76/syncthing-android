@@ -1,16 +1,28 @@
 package com.nutomic.syncthingandroid.settings
 
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.navigation3.runtime.EntryProviderScope
 import com.nutomic.syncthingandroid.R
 import com.nutomic.syncthingandroid.activities.LicenseActivity
+import com.nutomic.syncthingandroid.service.Constants
+import com.nutomic.syncthingandroid.util.Util
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.zhanghai.compose.preference.Preference
 
+
+const val TAG = "SettingsAboutScreen"
 
 fun EntryProviderScope<SettingsRoute>.settingsAboutEntry() {
     entry<SettingsRoute.About> {
@@ -23,25 +35,41 @@ fun EntryProviderScope<SettingsRoute>.settingsAboutEntry() {
 fun SettingsAboutScreen() {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val stService = LocalSyncthingService.current
+    val stServiceTick = LocalServiceUpdateTick.current
+
+    val unknown = stringResource(R.string.state_unknown)
+
+    val state by produceState(initialValue = AboutState(), stService, stServiceTick) {
+        value = withContext(Dispatchers.IO) {
+            val stVersion = stService?.api?.version ?: unknown
+            AboutState(
+                appVersion = getAppVersion(context),
+                coreVersion = stVersion,
+                dbSize = getDatabaseSize(context),
+                fileLimit = getOpenFileLimit()
+            )
+        }
+    }
 
     SettingsScaffold(
         title = stringResource(R.string.category_about),
     ) {
         Preference(
             title = { Text(stringResource(R.string.app_version_title)) },
-            summary = { Text("TODO: app version") },
+            summary = { Text(state.appVersion) },
         )
         Preference(
             title = { Text(stringResource(R.string.syncthing_version_title)) },
-            summary = { Text("TODO: st version") },
+            summary = { Text(state.coreVersion) },
         )
         Preference(
             title = { Text(stringResource(R.string.syncthing_database_size)) },
-            summary = { Text("TODO: db size") },
+            summary = { Text(state.dbSize) },
         )
         Preference(
             title = { Text(stringResource(R.string.os_open_file_limit)) },
-            summary = { Text("TODO: open file limit") },
+            summary = { Text(state.fileLimit) },
         )
 
         val stForumUri = stringResource(R.string.syncthing_forum_url)
@@ -67,4 +95,44 @@ fun SettingsAboutScreen() {
             },
         )
     }
+}
+
+data class AboutState(
+    val appVersion: String = "Loading...",
+    val coreVersion: String = "Loading...",
+    val dbSize: String = "Loading...",
+    val fileLimit: String = "Loading..."
+)
+
+private fun getAppVersion(context: Context): String {
+    return try {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        "v${packageInfo.versionName}"
+    } catch (e: PackageManager.NameNotFoundException) {
+        Log.e(TAG, "Failed to get app version name")
+        "Unknown"
+    }
+}
+
+private fun getOpenFileLimit(): String {
+    val shellCommand = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
+        "/system/bin/ulimit -n"
+    else
+        "ulimit -n"
+
+    val result = Util.runShellCommandGetOutput(shellCommand)
+    return if (result.isNullOrBlank()) "N/A" else result.trim()
+}
+
+private fun getDatabaseSize(context: Context): String {
+    val dbPath = Constants.getIndexDbFolder(context).absolutePath
+    val result = Util.runShellCommandGetOutput("/system/bin/du -sh $dbPath")
+
+    if (result.isNullOrBlank()) {
+        return "N/A"
+    }
+
+    // Split by whitespace and grab the first part (the size)
+    val resultParts = result.trim().split(Regex("\\s+"))
+    return resultParts.firstOrNull() ?: "N/A"
 }
