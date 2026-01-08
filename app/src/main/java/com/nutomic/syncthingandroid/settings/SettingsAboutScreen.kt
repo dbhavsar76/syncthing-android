@@ -1,7 +1,6 @@
 package com.nutomic.syncthingandroid.settings
 
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
@@ -14,7 +13,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.navigation3.runtime.EntryProviderScope
 import com.nutomic.syncthingandroid.R
-import com.nutomic.syncthingandroid.activities.LicenseActivity
 import com.nutomic.syncthingandroid.service.Constants
 import com.nutomic.syncthingandroid.util.Util
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +32,7 @@ fun EntryProviderScope<SettingsRoute>.settingsAboutEntry() {
 @Composable
 fun SettingsAboutScreen() {
     val context = LocalContext.current
+    val navigator = LocalSettingsNavigator.current
     val uriHandler = LocalUriHandler.current
     val stService = LocalSyncthingService.current
     val stServiceTick = LocalServiceUpdateTick.current
@@ -94,10 +93,7 @@ fun SettingsAboutScreen() {
         Preference(
             title = { Text(stringResource(R.string.open_source_licenses_title)) },
             summary = { Text(stringResource(R.string.open_source_licenses_summary)) },
-            onClick = {
-                val intent = Intent(context, LicenseActivity::class.java)
-                context.startActivity(intent)
-            },
+            onClick = { navigator.navigateTo(SettingsRoute.Licenses) },
         )
     }
 }

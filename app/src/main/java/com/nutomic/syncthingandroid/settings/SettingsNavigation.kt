@@ -39,6 +39,8 @@ sealed interface SettingsRoute : NavKey {
     data object Experimental : SettingsRoute
     @Serializable
     data object About : SettingsRoute
+    @Serializable
+    data object Licenses : SettingsRoute
 
 
     companion object {
@@ -54,6 +56,7 @@ sealed interface SettingsRoute : NavKey {
             "Troubleshooting" -> Troubleshooting
             "Experimental" -> Experimental
             "About" -> About
+            "Licenses" -> Licenses
             "Root" -> Root
             else -> {
                 Log.d(TAG, "Unknown settings path provided: $route. Defaulting to Root.")
@@ -79,6 +82,7 @@ fun rememberSettingsNavBackStack(startDestination: SettingsRoute): NavBackStack<
     ) {
         val initialRouts = listOfNotNull(
             SettingsRoute.Root,
+            SettingsRoute.About.takeIf { startDestination == SettingsRoute.Licenses },
             startDestination.takeIf { it != SettingsRoute.Root }
         ).toMutableStateList()
         NavBackStack(initialRouts)
@@ -105,6 +109,7 @@ fun SettingsNavDisplay(
             settingsTroubleshootingEntry()
             settingsExperimentalEntry()
             settingsAboutEntry()
+            licensesEntry()
         },
         transitionSpec = {
             // Slide in from right when navigating forward
