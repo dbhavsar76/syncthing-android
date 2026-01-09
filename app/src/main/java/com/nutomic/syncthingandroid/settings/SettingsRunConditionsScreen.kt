@@ -1,19 +1,21 @@
 package com.nutomic.syncthingandroid.settings
 
+import android.widget.Toast
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.navigation3.runtime.EntryProviderScope
 import com.nutomic.syncthingandroid.R
+import com.nutomic.syncthingandroid.service.Constants
 import me.zhanghai.compose.preference.ListPreference
 import me.zhanghai.compose.preference.MultiSelectListPreference
 import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.SwitchPreference
 import me.zhanghai.compose.preference.TextFieldPreference
+import me.zhanghai.compose.preference.rememberPreferenceState
 
 
 fun EntryProviderScope<SettingsRoute>.settingsRunConditionsEntry() {
@@ -25,27 +27,29 @@ fun EntryProviderScope<SettingsRoute>.settingsRunConditionsEntry() {
 
 @Composable
 fun SettingsRunConditionsScreen() {
-    val runOnWifi = remember { mutableStateOf(false) }
-    val runOnMeteredWifi = remember { mutableStateOf(false) }
-    val runOnSpecifiedSsid = remember { mutableStateOf(false) }
-    val specifiedSsids = remember { mutableStateOf(setOf<String>()) }
+    val context = LocalContext.current
 
-    val runOnMobileData = remember { mutableStateOf(false) }
-    val runOnRoaming = remember { mutableStateOf(false) }
+    val runOnWifi = rememberPreferenceState(Constants.PREF_RUN_ON_WIFI, true)
+    val runOnMeteredWifi = rememberPreferenceState(Constants.PREF_RUN_ON_METERED_WIFI, false)
+    val runOnSpecifiedSsid = rememberPreferenceState(Constants.PREF_USE_WIFI_SSID_WHITELIST, false)
+    val specifiedSsids = rememberPreferenceState(Constants.PREF_WIFI_SSID_WHITELIST, setOf<String>())
+
+    val runOnMobileData = rememberPreferenceState(Constants.PREF_RUN_ON_MOBILE_DATA, false)
+    val runOnRoaming = rememberPreferenceState(Constants.PREF_RUN_ON_ROAMING, false)
 
     val powerSourceNames = stringArrayResource(R.array.power_source_entries)
     val powerSourceValues = stringArrayResource(R.array.power_source_values)
-    val powerSource = remember { mutableStateOf(powerSourceValues[0]) }
+    val powerSource = rememberPreferenceState(Constants.PREF_POWER_SOURCE, powerSourceValues[0])
 
-    val respectBatterySaving = remember { mutableStateOf(false) }
-    val respectMasterSync = remember { mutableStateOf(false) }
-    val flightMode = remember { mutableStateOf(false) }
+    val respectBatterySaving = rememberPreferenceState(Constants.PREF_RESPECT_BATTERY_SAVING, true)
+    val respectMasterSync = rememberPreferenceState(Constants.PREF_RESPECT_MASTER_SYNC, false)
+    val flightMode = rememberPreferenceState(Constants.PREF_RUN_IN_FLIGHT_MODE, false)
 
-    val runScheduled = remember { mutableStateOf(false) }
-    val syncDuration = remember { mutableStateOf(5) }
-    val sleepInterval = remember { mutableStateOf(60) }
+    val runScheduled = rememberPreferenceState(Constants.PREF_RUN_ON_TIME_SCHEDULE, false)
+    val syncDuration = rememberPreferenceState(Constants.PREF_SYNC_DURATION_MINUTES, 5)
+    val sleepInterval = rememberPreferenceState(Constants.PREF_SLEEP_INTERVAL_MINUTES, 60)
 
-
+    // TODO: re-evaluate run condition on any preference changed
 
     SettingsScaffold(
         title = stringResource(R.string.run_conditions_title),
@@ -73,11 +77,7 @@ fun SettingsRunConditionsScreen() {
         )
 
         val specifiedSsidSummary = if (specifiedSsids.value.isNotEmpty())
-            buildString {
-                append(stringResource(R.string.specify_wifi_ssid_whitelist))
-                append(": ")
-                append(specifiedSsids.value.joinToString(", "))
-            }
+            stringResource(R.string.run_on_whitelisted_wifi_networks, specifiedSsids.value.joinToString())
         else
             stringResource(R.string.wifi_ssid_whitelist_empty)
         MultiSelectListPreference(
@@ -85,6 +85,7 @@ fun SettingsRunConditionsScreen() {
             summary = { Text(specifiedSsidSummary) },
             state = specifiedSsids,
             enabled = runOnWifi.value && runOnSpecifiedSsid.value,
+            // TODO: implement logics from com.nutomic.syncthingandroid.views.WifiSsidPreference and get ssid list
             values = listOf("ssid1", "ssid2", "ssid3")
         )
 
@@ -141,13 +142,31 @@ fun SettingsRunConditionsScreen() {
             title = { Text(stringResource(R.string.sync_duration_minutes_title)) },
             summary = { Text(stringResource(R.string.sync_duration_minutes_summary, syncDuration.value)) },
             state = syncDuration,
-            textToValue = { text -> text.toIntOrNull() ?: syncDuration.value}
+            textToValue = { text ->
+                val mins = text.toIntOrNull()
+                if (mins == null || mins !in 1..1440) {
+                    val message = context.getString(R.string.invalid_integer_value, 1, 1440/* 24h */)
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    null
+                } else {
+                    mins
+                }
+            }
         )
         TextFieldPreference(
             title = { Text(stringResource(R.string.sleep_interval_minutes_title)) },
             summary = { Text(stringResource(R.string.sync_duration_minutes_summary, sleepInterval.value)) },
             state = sleepInterval,
-            textToValue = { text -> text.toIntOrNull() ?: sleepInterval.value}
+            textToValue = { text ->
+                val mins = text.toIntOrNull()
+                if (mins == null || mins !in 1..30240) {
+                    val message = context.getString(R.string.invalid_integer_value, 1, 30240/* 3w */)
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    null
+                } else {
+                    mins
+                }
+            }
         )
     }
 }

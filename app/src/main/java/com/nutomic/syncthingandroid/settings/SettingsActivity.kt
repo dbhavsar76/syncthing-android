@@ -6,7 +6,10 @@ import android.os.IBinder
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,7 +34,7 @@ class SettingsActivity : SyncthingActivity() {
     private var syncthingServiceState by mutableStateOf<SyncthingService?>(service)
 
     // The ticker will help update the ui whenever the state of syncthing service updates
-    private var serviceUpdateTick by mutableStateOf(0)
+    private var serviceUpdateTick by mutableIntStateOf(0)
     val stateChangeListener = SyncthingService.OnServiceStateChangeListener {
         serviceUpdateTick++
     }
@@ -58,6 +61,19 @@ class SettingsActivity : SyncthingActivity() {
                             backStack.removeLastOrNull()
                         }
                     }
+                }
+            }
+
+            // If we are on syncthing options and service stop, pop out to settings root
+            val shouldExitStOptions by remember { derivedStateOf {
+                val isNotActive = syncthingServiceState?.currentState != SyncthingService.State.ACTIVE
+                val isOnStOptions = backStack.last() == SettingsRoute.SyncthingOptions
+                isNotActive && isOnStOptions
+            } }
+
+            LaunchedEffect(shouldExitStOptions) {
+                if (shouldExitStOptions) {
+                    navigator.navigateBack()
                 }
             }
 
