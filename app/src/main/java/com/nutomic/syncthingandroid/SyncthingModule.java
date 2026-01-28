@@ -9,9 +9,6 @@ import javax.inject.Singleton;
 
 import dagger.Module;
 import dagger.Provides;
-import kotlinx.coroutines.flow.MutableStateFlow;
-import me.zhanghai.compose.preference.PreferenceFlow_androidKt;
-import me.zhanghai.compose.preference.Preferences;
 
 @Module
 public class SyncthingModule {
@@ -26,13 +23,6 @@ public class SyncthingModule {
     @Singleton
     public SharedPreferences getPreferences() {
         return PreferenceManager.getDefaultSharedPreferences(mApp);
-    }
-
-    @Provides
-    @Singleton
-    public MutableStateFlow<Preferences> preferencesMutableStateFlow(SharedPreferences sharedPreferences) {
-        PreferenceFlow_androidKt.setDefaultPreferenceFlowLongSupportEnabled(true);
-        return PreferenceFlow_androidKt.createPreferenceFlow(sharedPreferences);
     }
 
     @Provides

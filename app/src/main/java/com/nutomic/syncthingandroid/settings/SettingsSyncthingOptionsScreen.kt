@@ -325,8 +325,8 @@ private fun ClearStVersionPreference(
     enabled: Boolean,
 ) {
     val context = LocalContext.current
+    val scope = LocalActivityScope.current
     var showAlert by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     Preference(
         title = { Text(stringResource(R.string.clear_stversions_title)) },
@@ -380,8 +380,8 @@ private fun UndoIgnoredDevicesFoldersPreference(
     enabled: Boolean,
 ) {
     val context = LocalContext.current
+    val scope = LocalActivityScope.current
     var showAlert by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     Preference(
         title = { Text(stringResource(R.string.undo_ignored_devices_folders_title)) },
@@ -432,7 +432,7 @@ private fun SupportBundlePreference(
     stService: SyncthingService?,
     enabled: Boolean,
 ) {
-    val scope = rememberCoroutineScope()
+    val scope = LocalActivityScope.current
     var supportBundleState by remember { mutableStateOf(SupportBundleDownloadState.INIT) }
     var supportBundleFileName by remember { mutableStateOf("") }
 
@@ -503,7 +503,8 @@ private var RestApi.preferences: Preferences
             values[Keys.WEB_GUI_PORT] = gui.bindPort.toIntOrNull() ?: Constants.DEFAULT_WEBGUI_TCP_PORT
             values[Keys.WEB_GUI_REMOTE_ACCESS] = gui.bindAddress != BIND_LOCALHOST
             values[Keys.WEB_GUI_USERNAME] = gui.user
-            values[Keys.WEB_GUI_PASSWORD] = gui.password
+            // use password saved in shared preference only
+            // values[Keys.WEB_GUI_PASSWORD] = gui.password
         }
 
         return MapPreferences(values)

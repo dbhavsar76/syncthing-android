@@ -1,6 +1,7 @@
 package com.nutomic.syncthingandroid.settings
 
 import android.content.ComponentName
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.compose.setContent
@@ -12,21 +13,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.lifecycle.lifecycleScope
 import com.nutomic.syncthingandroid.SyncthingApp
 import com.nutomic.syncthingandroid.activities.SyncthingActivity
 import com.nutomic.syncthingandroid.service.SyncthingService
 import com.nutomic.syncthingandroid.theme.ApplicationTheme
 import jakarta.inject.Inject
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import me.zhanghai.compose.preference.Preferences
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 
+val LocalActivityScope = staticCompositionLocalOf<CoroutineScope> {
+    error("No activity scope provided")
+}
 val LocalSyncthingService = staticCompositionLocalOf<SyncthingService?> { null }
 val LocalServiceUpdateTick = staticCompositionLocalOf { 0 }
 
 class SettingsActivity : SyncthingActivity() {
 
     @Inject
+    lateinit var sharedPreferences: SharedPreferences
     lateinit var prefFlow: MutableStateFlow<Preferences>
 
     private var syncthingServiceState by mutableStateOf<SyncthingService?>(service)
@@ -41,6 +48,9 @@ class SettingsActivity : SyncthingActivity() {
         (application as SyncthingApp).component().inject(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val activityScope = this.lifecycleScope
+        prefFlow = createPreferenceFlow(sharedPreferences, activityScope)
 
         val routeStr = intent.getStringExtra(EXTRA_START_DESTINATION)
         val startDestination: SettingsRoute = SettingsRoute.fromString(routeStr)
@@ -64,6 +74,7 @@ class SettingsActivity : SyncthingActivity() {
 
             ApplicationTheme {
                 CompositionLocalProvider(
+                    LocalActivityScope provides activityScope,
                     LocalSettingsNavigator provides navigator,
                     LocalSyncthingService provides syncthingServiceState,
                     LocalServiceUpdateTick provides serviceUpdateTick,
