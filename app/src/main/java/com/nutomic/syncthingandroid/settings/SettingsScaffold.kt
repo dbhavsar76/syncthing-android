@@ -1,5 +1,8 @@
 package com.nutomic.syncthingandroid.settings
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +20,7 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -39,7 +43,10 @@ fun SettingsScaffold(
     val configuration = LocalConfiguration.current
     val navigator = LocalSettingsNavigator.current
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+        snapAnimationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        flingAnimationSpec = rememberSplineBasedDecay()
+    )
     val collapsedFraction = scrollBehavior.state.collapsedFraction
 
     // Alpha: 1.0 -> 0.0 (over 0.0 to 0.25 collapsedFraction)
@@ -52,45 +59,50 @@ fun SettingsScaffold(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Column {
-                        Text(title)
-                        if (!description.isNullOrBlank() && heightScale > 0f) {
-                            Column(
-                                modifier = Modifier.alpha(subtitleAlpha)
-                                    .layout { measurable, constraints ->
-                                        val placeable = measurable.measure(constraints)
-                                        val currentHeight = (placeable.height * heightScale).toInt()
-                                        layout(placeable.width, currentHeight) {
-                                            placeable.placeRelative(0, 0)
+            if (configuration.isTelevision) {
+                // Use normal top app bar because of low vertical space
+                TopAppBar(
+                    title = { Text(title) }
+                    // TVs remotes have dedicated back buttons,
+                    // so material guidelines suggest to not show the back button
+                )
+            } else {
+                LargeTopAppBar(
+                    title = {
+                        Column {
+                            Text(title)
+                            if (!description.isNullOrBlank() && heightScale > 0f) {
+                                Column(
+                                    modifier = Modifier.alpha(subtitleAlpha)
+                                        .layout { measurable, constraints ->
+                                            val placeable = measurable.measure(constraints)
+                                            val currentHeight = (placeable.height * heightScale).toInt()
+                                            layout(placeable.width, currentHeight) {
+                                                placeable.placeRelative(0, 0)
+                                            }
                                         }
-                                    }
-                            ) {
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = description,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                ) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = description,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
-                    }
-                },
-                navigationIcon = {
-                    // TVs remotes have dedicated back buttons, so material guidelines
-                    // suggest to not show the back button
-                    if (!configuration.isTelevision) {
+                    },
+                    navigationIcon = {
                         IconButton(onClick = { navigator.navigateBack() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(id = R.string.back)
                             )
                         }
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
+                    },
+                    scrollBehavior = scrollBehavior,
+                )
+            }
         },
         content = { paddingValues ->
             Column(
