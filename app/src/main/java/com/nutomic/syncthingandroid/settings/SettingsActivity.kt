@@ -69,6 +69,9 @@ class SettingsActivity : SyncthingActivity() {
                             backStack.removeLastOrNull()
                         }
                     }
+                    override fun navigateUp() {
+                        finish()
+                    }
                 }
             }
 

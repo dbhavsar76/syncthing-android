@@ -75,6 +75,7 @@ sealed interface SettingsRoute : NavKey {
 interface Navigator<T: NavKey> {
     fun navigateTo(route: T)
     fun navigateBack()
+    fun navigateUp() // added temporarily to finish settings activity and return
 }
 
 val LocalSettingsNavigator = staticCompositionLocalOf<Navigator<SettingsRoute>> {
