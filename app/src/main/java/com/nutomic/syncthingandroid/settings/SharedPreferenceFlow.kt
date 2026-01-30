@@ -2,6 +2,7 @@ package com.nutomic.syncthingandroid.settings
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.nutomic.syncthingandroid.service.Constants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -39,7 +40,11 @@ fun createPreferenceFlow(
                     val newMap = newPrefs.asMap()
                     val diskMap = sharedPreferences.all
 
-                    sharedPreferences.edit {
+                    // we restart the app after updating verbose logs setting
+                    // so commit to disk before ending current process
+                    val commit = diskMap[Constants.PREF_VERBOSE_LOG] != newMap[Constants.PREF_VERBOSE_LOG]
+
+                    sharedPreferences.edit(commit) {
                         newMap.forEach { (key, newValue) ->
                             val diskValue = diskMap[key]
                             if (newValue != diskValue) {

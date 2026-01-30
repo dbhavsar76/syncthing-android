@@ -684,6 +684,7 @@
 
     <!-- Title for the preference to set STTRACE parameters -->
     <string name="sttrace_title">STTRACE Options</string>
+    <string name="sttrace_none_selected">No debug facility</string>
 
     <string name="environment_variables">Environment variables</string>
 
