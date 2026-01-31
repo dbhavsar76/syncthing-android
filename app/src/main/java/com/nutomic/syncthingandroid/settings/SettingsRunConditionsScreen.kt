@@ -58,8 +58,8 @@ fun SettingsRunConditionsScreen() {
     var flightMode by rememberPreferenceState(Constants.PREF_RUN_IN_FLIGHT_MODE, false)
 
     var runScheduled by rememberPreferenceState(Constants.PREF_RUN_ON_TIME_SCHEDULE, false)
-    var syncDuration by rememberPreferenceState(Constants.PREF_SYNC_DURATION_MINUTES, 5)
-    var sleepInterval by rememberPreferenceState(Constants.PREF_SLEEP_INTERVAL_MINUTES, 60)
+    var syncDuration by rememberPreferenceState(Constants.PREF_SYNC_DURATION_MINUTES, "5")
+    var sleepInterval by rememberPreferenceState(Constants.PREF_SLEEP_INTERVAL_MINUTES, "60")
 
 
     DisposableEffect(lifecycleOwner, stService) {
@@ -230,7 +230,7 @@ fun SettingsRunConditionsScreen() {
                     Toast.makeText(context, syncDurationError, Toast.LENGTH_LONG).show()
                     null
                 } else {
-                    mins
+                    text
                 }
             }
         )
@@ -249,7 +249,7 @@ fun SettingsRunConditionsScreen() {
                     Toast.makeText(context, sleepIntervalError, Toast.LENGTH_LONG).show()
                     null
                 } else {
-                    mins
+                    text
                 }
             }
         )
