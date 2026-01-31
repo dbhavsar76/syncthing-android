@@ -5,7 +5,6 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
@@ -36,8 +35,8 @@ fun EntryProviderScope<SettingsRoute>.settingsUserInterfaceEntry() {
 @Composable
 fun SettingsUserInterfaceScreen() {
     val context = LocalContext.current
+    val scope = LocalActivityScope.current
     val stService = LocalSyncthingService.current
-    val scope = rememberCoroutineScope()
 
     val themeNames = stringArrayResource(R.array.app_theme_names)
     val themeValues = stringArrayResource(R.array.app_theme_values)
