@@ -16,6 +16,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.lifecycleScope
 import com.nutomic.syncthingandroid.SyncthingApp
 import com.nutomic.syncthingandroid.activities.SyncthingActivity
+import com.nutomic.syncthingandroid.service.NotificationHandler
 import com.nutomic.syncthingandroid.service.SyncthingService
 import com.nutomic.syncthingandroid.theme.ApplicationTheme
 import jakarta.inject.Inject
@@ -35,6 +36,8 @@ class SettingsActivity : SyncthingActivity() {
     @Inject
     lateinit var sharedPreferences: SharedPreferences
     lateinit var prefFlow: MutableStateFlow<Preferences>
+    @Inject
+    lateinit var notificationHandler: NotificationHandler
 
     private var syncthingServiceState by mutableStateOf<SyncthingService?>(service)
 
@@ -104,6 +107,13 @@ class SettingsActivity : SyncthingActivity() {
         super.onServiceDisconnected(name)
         syncthingServiceState = null
         serviceUpdateTick++
+    }
+
+    override fun onStop() {
+        syncthingServiceState?.let {
+            notificationHandler.updatePersistentNotification(it)
+        }
+        super.onStop()
     }
 
     override fun onDestroy() {

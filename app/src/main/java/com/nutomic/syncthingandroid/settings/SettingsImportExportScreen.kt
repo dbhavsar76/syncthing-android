@@ -40,7 +40,8 @@ fun EntryProviderScope<SettingsRoute>.settingsImportExportEntry() {
 
 @Composable
 fun SettingsImportExportScreen() {
-    val backupPath = rememberPreferenceState(Constants.PREF_BACKUP_REL_PATH_TO_ZIP,"backups/syncthing/config.zip")
+    val defaultBackupPath = "backups/syncthing/config.zip"
+    val backupPath = rememberPreferenceState(Constants.PREF_BACKUP_REL_PATH_TO_ZIP,defaultBackupPath)
     val password = rememberPreferenceState(Constants.PREF_BACKUP_PASSWORD, "")
 
     SettingsScaffold(
@@ -58,9 +59,9 @@ fun SettingsImportExportScreen() {
         )
         TextFieldPreference(
             title = { Text(stringResource(R.string.backup_rel_path_to_zip)) },
-            summary = { Text(backupPath.value) },
+            summary = { Text(backupPath.value.ifBlank { defaultBackupPath }) },
             state = backupPath,
-            textToValue = { it },
+            textToValue = { it.ifBlank { defaultBackupPath } },
         )
 
         val passwordSummary = if (password.value.isBlank())
