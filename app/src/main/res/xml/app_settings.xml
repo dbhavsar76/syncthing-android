@@ -335,13 +335,6 @@
                 android:defaultValue="backups/syncthing/config.zip"
                 android:inputType="textNoSuggestions" />
 
-            <com.nutomic.syncthingandroid.views.PasswordPreference
-                android:key="backup_password"
-                android:title="@string/backup_password_title"
-                android:summary="@null"
-                android:persistent="true"
-                android:defaultValue=""
-                android:inputType="textNoSuggestions" />
         </PreferenceCategory>
 
         <PreferenceCategory android:title="@string/preference_category_actions">

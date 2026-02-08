@@ -54,7 +54,6 @@ import com.nutomic.syncthingandroid.service.SyncthingServiceBinder;
 import com.nutomic.syncthingandroid.util.ConfigRouter;
 import com.nutomic.syncthingandroid.util.FileUtils;
 import com.nutomic.syncthingandroid.util.Util;
-import com.nutomic.syncthingandroid.views.PasswordPreference;
 import com.nutomic.syncthingandroid.views.WifiSsidPreference;
 
 import org.mindrot.jbcrypt.BCrypt;
@@ -202,7 +201,6 @@ public class SettingsActivity extends SyncthingActivity {
 
         /* Import and Export */
         private EditTextPreference mBackupRelPathToZip;
-        private PasswordPreference mBackupPassword;
 
         /* Experimental options */
         private CheckBoxPreference mUseTor;
@@ -344,10 +342,6 @@ public class SettingsActivity extends SyncthingActivity {
             mBackupRelPathToZip = (EditTextPreference) findPreference(Constants.PREF_BACKUP_REL_PATH_TO_ZIP);
             mBackupRelPathToZip.setSummary(mBackupRelPathToZip.getText());
             mBackupRelPathToZip.setOnPreferenceChangeListener(this);
-
-            mBackupPassword = (PasswordPreference) findPreference(Constants.PREF_BACKUP_PASSWORD);
-            mBackupPassword.setText(mBackupPassword.getText());
-            mBackupPassword.setOnPreferenceChangeListener(this);
 
             /* Troubleshooting */
             Preference verboseLog                   = findPreference(Constants.PREF_VERBOSE_LOG);
