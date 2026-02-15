@@ -50,7 +50,7 @@ sealed interface SettingsRoute : NavKey {
 
 
     companion object {
-        const val TAG = "SettingsRoute"
+        private const val TAG = "SettingsRoute"
 
         // Use these strings to open particular screen directly
         fun fromString(route: String?): SettingsRoute = when (route) {

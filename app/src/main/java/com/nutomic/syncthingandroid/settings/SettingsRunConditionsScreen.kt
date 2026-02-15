@@ -1,25 +1,56 @@
 package com.nutomic.syncthingandroid.settings
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.location.LocationManager
+import android.net.wifi.WifiManager
+import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
+import androidx.core.location.LocationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation3.runtime.EntryProviderScope
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionStatus
+import com.google.accompanist.permissions.rememberPermissionState
 import com.nutomic.syncthingandroid.R
 import com.nutomic.syncthingandroid.service.Constants
+import com.nutomic.syncthingandroid.service.SyncthingService
 import me.zhanghai.compose.preference.ListPreference
-import me.zhanghai.compose.preference.MultiSelectListPreference
+import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.SwitchPreference
 import me.zhanghai.compose.preference.TextFieldPreference
@@ -44,7 +75,6 @@ fun SettingsRunConditionsScreen() {
     var runOnWifi by rememberPreferenceState(Constants.PREF_RUN_ON_WIFI, true)
     var runOnMeteredWifi by rememberPreferenceState(Constants.PREF_RUN_ON_METERED_WIFI, false)
     var runOnSpecifiedSsid by rememberPreferenceState(Constants.PREF_USE_WIFI_SSID_WHITELIST, false)
-    var specifiedSsids by rememberPreferenceState(Constants.PREF_WIFI_SSID_WHITELIST, setOf<String>())
 
     var runOnMobileData by rememberPreferenceState(Constants.PREF_RUN_ON_MOBILE_DATA, false)
     var runOnRoaming by rememberPreferenceState(Constants.PREF_RUN_ON_ROAMING, false)
@@ -118,22 +148,11 @@ fun SettingsRunConditionsScreen() {
             },
             enabled = runOnWifi,
         )
-
-        val specifiedSsidSummary = if (specifiedSsids.isNotEmpty())
-            stringResource(R.string.run_on_whitelisted_wifi_networks, specifiedSsids.joinToString())
-        else
-            stringResource(R.string.wifi_ssid_whitelist_empty)
-        MultiSelectListPreference(
-            title = { Text(stringResource(R.string.specify_wifi_ssid_whitelist)) },
-            summary = { Text(specifiedSsidSummary) },
-            value = specifiedSsids,
-            onValueChange = {
-                specifiedSsids = it
-                pendingEvaluation = true
-            },
+        WifiSsidPreference(
             enabled = runOnWifi && runOnSpecifiedSsid,
-            // TODO: implement logics from com.nutomic.syncthingandroid.views.WifiSsidPreference and get ssid list
-            values = listOf("ssid1", "ssid2", "ssid3")
+            setPendingEvaluation = {
+                pendingEvaluation = true
+            }
         )
 
         PreferenceCategory(
@@ -254,4 +273,156 @@ fun SettingsRunConditionsScreen() {
             }
         )
     }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun WifiSsidPreference(
+    enabled: Boolean,
+    setPendingEvaluation: () -> Unit,
+) {
+    val context = LocalContext.current
+    val locationManager = context.applicationContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+    var specifiedSsids by rememberPreferenceState(Constants.PREF_WIFI_SSID_WHITELIST, setOf<String>())
+    var knownSsids by rememberPreferenceState(Constants.PREF_KNOWN_WIFI_SSIDS, setOf<String>())
+
+    var showSelectionAlert by rememberSaveable { mutableStateOf(false) }
+
+    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        Manifest.permission.ACCESS_FINE_LOCATION
+    } else {
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    }
+
+    val permissionState = rememberPermissionState(permission) { isGranted ->
+        if (!isGranted) {
+            Toast.makeText(
+                context,
+                R.string.sync_only_wifi_ssids_location_permission_rejected_dialog_content,
+                Toast.LENGTH_LONG
+            ).show()
+        } else {
+            val intent = Intent(context, SyncthingService::class.java)
+                .setAction(SyncthingService.ACTION_REFRESH_NETWORK_INFO)
+            context.startService(intent)
+        }
+    }
+    val bgPermissionState = rememberPermissionState(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+
+    val isPermissionGranted = permissionState.status == PermissionStatus.Granted
+    val isLocationEnabled = LocationManagerCompat.isLocationEnabled(locationManager)
+
+    LaunchedEffect(isPermissionGranted) {
+        val currentSsid = getCurrentWifiSsid(context)
+        var updatedKnown = knownSsids
+        var updatedSelection = specifiedSsids
+
+        if (!currentSsid.isNullOrBlank()) {
+            updatedKnown = knownSsids + currentSsid
+        }
+        val toRemoveSelected = specifiedSsids - updatedKnown
+        if (toRemoveSelected.isNotEmpty()) {
+            updatedSelection = specifiedSsids - toRemoveSelected
+        }
+
+        knownSsids = updatedKnown
+        specifiedSsids =  updatedSelection
+    }
+
+    val specifiedSsidSummary = if (specifiedSsids.isNotEmpty())
+        stringResource(R.string.run_on_whitelisted_wifi_networks, specifiedSsids.joinToString())
+    else
+        stringResource(R.string.wifi_ssid_whitelist_empty)
+
+    Preference(
+        enabled = enabled,
+        title = { Text(stringResource(R.string.specify_wifi_ssid_whitelist)) },
+        summary = { Text(specifiedSsidSummary) },
+        onClick = {
+            if (isPermissionGranted && isLocationEnabled) {
+                showSelectionAlert = true
+            } else if (!isPermissionGranted) {
+                permissionState.launchPermissionRequest()
+            } else if (knownSsids.isEmpty()) {
+                Toast.makeText(
+                    context,
+                    R.string.sync_only_wifi_ssids_wifi_turn_on_wifi,
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Toast.makeText(
+                    context,
+                    R.string.sync_only_wifi_ssids_wifi_turn_on_location,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    )
+    if (showSelectionAlert) {
+        var dialogValue by rememberSaveable { mutableStateOf(specifiedSsids) }
+        val onOk = {
+            specifiedSsids = dialogValue
+            showSelectionAlert = false
+            setPendingEvaluation()
+        }
+        AlertDialog(
+            onDismissRequest = { showSelectionAlert = false },
+            title = { Text(stringResource(R.string.specify_wifi_ssid_whitelist)) },
+            text = {
+                val lazyListState = rememberLazyListState()
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = lazyListState,
+                ) {
+                    items(knownSsids.toList()) { itemValue ->
+                        val checked = itemValue in dialogValue
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .toggleable(checked, true, Role.Checkbox) {
+                                        dialogValue =
+                                            if (it) dialogValue + itemValue else dialogValue - itemValue
+                                    }
+                                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = checked, onCheckedChange = null)
+                            Spacer(modifier = Modifier.width(24.dp))
+                            Text(
+                                text = AnnotatedString(
+                                    itemValue.replace("^\"".toRegex(), "")
+                                        .replace("\"$".toRegex(), "")
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onOk) {
+                    Text(text = stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSelectionAlert = false }) {
+                    Text(text = stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+}
+
+private fun getCurrentWifiSsid(context: Context): String? {
+    val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    val ssid = wifiManager.connectionInfo?.ssid
+
+    return if (ssid.isNullOrBlank() || ssid == WifiManager.UNKNOWN_SSID)
+        null
+    else
+        ssid
 }
