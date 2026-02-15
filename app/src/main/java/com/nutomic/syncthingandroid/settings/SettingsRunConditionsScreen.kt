@@ -308,7 +308,6 @@ private fun WifiSsidPreference(
             context.startService(intent)
         }
     }
-    val bgPermissionState = rememberPermissionState(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
 
     val isPermissionGranted = permissionState.status == PermissionStatus.Granted
     val isLocationEnabled = LocationManagerCompat.isLocationEnabled(locationManager)
