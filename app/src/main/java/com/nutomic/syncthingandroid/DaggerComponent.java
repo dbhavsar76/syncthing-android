@@ -38,11 +38,11 @@ public interface DaggerComponent {
     void inject(RestApi restApi);
     void inject(RecentChangesActivity recentChangesActivity);
     void inject(RunConditionMonitor runConditionMonitor);
+    void inject(SettingsActivity settingsActivity);
     void inject(ShareActivity activity);
     void inject(StatusFragment fragment);
     void inject(SyncConditionsActivity activity);
     void inject(SyncthingApp app);
     void inject(SyncthingRunnable syncthingRunnable);
     void inject(SyncthingService service);
-    void inject(SettingsActivity settingsActivity);
 }
