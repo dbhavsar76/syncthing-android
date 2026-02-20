@@ -156,9 +156,11 @@ private fun DrawerContent(
 
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
 
-            LazyColumn(Modifier
-                .padding(vertical = 8.dp)
-                .weight(1f)) {
+            LazyColumn(
+                modifier = Modifier
+                    .padding(vertical = 8.dp)
+                    .weight(1f)
+            ) {
                 item {
                     DrawerItem(
                         icon = { Icon(Icons.Outlined.QrCode2, null) },
@@ -175,7 +177,8 @@ private fun DrawerContent(
                         icon = { Icon(Icons.Outlined.Restore, null) },
                         label = { Text(stringResource(R.string.recent_changes_title)) },
                         onClick = {
-                            activity.startActivity(Intent(activity, RecentChangesActivity::class.java))
+                            val intent = Intent(activity, RecentChangesActivity::class.java)
+                            activity.startActivity(intent)
                             activity.closeDrawer()
                         },
                         enabled = stServiceRunning,
@@ -234,7 +237,7 @@ private fun DrawerContent(
 }
 
 @Composable
-private fun RestartDrawerItem(stServiceRunning: Boolean, ) {
+private fun RestartDrawerItem(stServiceRunning: Boolean) {
     val activity = LocalActivity.current as MainActivity
     var showAlert by rememberSaveable { mutableStateOf(false) }
 
