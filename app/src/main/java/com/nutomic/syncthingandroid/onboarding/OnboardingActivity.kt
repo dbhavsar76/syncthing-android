@@ -49,7 +49,10 @@ class OnboardingActivity : ThemedAppCompatActivity() {
          * so that back navigation works as expected.
          */
         if (startIntoWebGui) {
-            startActivities(arrayOf(mainIntent, Intent(this, WebGuiActivity::class.java)))
+            startActivities(arrayOf(
+                mainIntent,
+                Intent(this, WebGuiActivity::class.java)
+            ))
         } else {
             startActivity(mainIntent)
         }
