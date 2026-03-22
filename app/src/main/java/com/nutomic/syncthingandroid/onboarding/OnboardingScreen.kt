@@ -11,18 +11,12 @@ import com.nutomic.syncthingandroid.util.LocalPagerState
 /**
  * The list of onboarding pages shown in order.
  */
-private val onboardingPages = listOf(
-    OnboardingPage.WELCOME,
-    OnboardingPage.STORAGE_PERMISSION,
-    OnboardingPage.BATTERY_OPTIMIZATION,
-    OnboardingPage.LOCATION_PERMISSION,
-    OnboardingPage.NOTIFICATION_PERMISSION,
-    OnboardingPage.KEY_GENERATION,
-)
 
 @Composable
-fun OnboardingScreen() {
-    val pagerState = rememberPagerState(pageCount = { onboardingPages.size })
+fun OnboardingScreen(
+    pages: List<OnboardingPage>
+) {
+    val pagerState = rememberPagerState(pageCount = { pages.size })
 
     CompositionLocalProvider(LocalPagerState provides pagerState) {
         HorizontalPager(
@@ -30,7 +24,7 @@ fun OnboardingScreen() {
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = false,
         ) { pageIdx ->
-            OnboardingPage(page = onboardingPages[pageIdx])
+            OnboardingPage(page = pages[pageIdx])
         }
     }
 }
