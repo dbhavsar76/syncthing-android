@@ -22,6 +22,7 @@ import com.nutomic.syncthingandroid.R
 import com.nutomic.syncthingandroid.activities.SyncthingActivity
 import com.nutomic.syncthingandroid.model.Device
 import com.nutomic.syncthingandroid.model.DiskEvent
+import com.nutomic.syncthingandroid.service.Constants.PREF_SHOW_EXACT_TIMES
 import com.nutomic.syncthingandroid.service.RestApi
 import com.nutomic.syncthingandroid.service.SyncthingService
 import com.nutomic.syncthingandroid.service.SyncthingServiceBinder
@@ -180,8 +181,6 @@ class RecentChangesActivity : SyncthingActivity(), SyncthingService.OnServiceSta
 
         /** How often the foreground screen re-queries. Tune freely; each query is a local call. */
         private val POLL_INTERVAL = 5.seconds
-
-        private const val PREF_SHOW_EXACT_TIMES = "recent_changes_show_exact_times"
     }
 }
 
