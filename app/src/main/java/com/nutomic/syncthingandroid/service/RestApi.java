@@ -1016,8 +1016,6 @@ public class RestApi {
 
     /**
      * Requests and parses information about recent changes.
-     */
-    /**
      * Fetches the most recent disk events.
      *
      * "timeout=1" is important. /rest/events/disk is a long-poll endpoint: when no disk events are
