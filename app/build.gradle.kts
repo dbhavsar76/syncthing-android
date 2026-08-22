@@ -40,6 +40,11 @@ dependencies {
     implementation(libs.zxing.android.embedded) { isTransitive = false }
     implementation(libs.zxing.core)
     ksp(libs.dagger.compiler)
+    // Test-only: BouncyCastle mints the X.509 fixtures (chains, expired, not-yet-valid) at runtime
+    // so no certificate is committed and none can expire out from under CI. It is not an
+    // implementation dependency and never reaches the APK — see .claude/custom-https-cert/README.md.
+    testImplementation(libs.bouncycastle.bcpkix)
+    testImplementation(libs.junit)
 }
 
 android {
@@ -143,6 +148,15 @@ android {
     lint {
         abortOnError = true
         targetSdk = libs.versions.target.sdk.get().toInt()
+    }
+
+    testOptions {
+        unitTests {
+            // Unit tests here cover pure-JVM logic. Returning defaults rather than throwing "Stub!"
+            // keeps an incidental android.jar call (e.g. Log.w on an error path) from failing a test
+            // that is not about Android at all.
+            isReturnDefaultValues = true
+        }
     }
 
     dependenciesInfo {
