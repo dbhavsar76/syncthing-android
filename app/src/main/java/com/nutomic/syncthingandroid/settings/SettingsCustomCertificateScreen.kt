@@ -41,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,7 +62,12 @@ import kotlinx.coroutines.withContext
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.PreferenceCategory
 
-private const val MAX_PEM_BYTES = 512 * 1024
+/**
+ * Upper bound on a picked certificate or key file. Generous for PEM — a full chain is a few KiB — while
+ * keeping both files small enough to sit in the saved-instance-state Bundle, which travels over a
+ * Binder transaction with a hard size limit shared process-wide.
+ */
+private const val MAX_PEM_BYTES = 64 * 1024
 
 /** Relative to [R.string.wiki_url], matching how the onboarding pages link into the wiki. */
 private const val CUSTOM_CERT_WIKI_PATH =
@@ -79,14 +85,18 @@ fun SettingsCustomCertificateScreen() {
     val navigator = LocalSettingsNavigator.current
     val stService = LocalSyncthingService.current
 
-    var certBytes by remember { mutableStateOf<ByteArray?>(null) }
-    var keyBytes by remember { mutableStateOf<ByteArray?>(null) }
-    var certName by remember { mutableStateOf<String?>(null) }
-    var keyName by remember { mutableStateOf<String?>(null) }
+    var certBytes by rememberSaveable { mutableStateOf<ByteArray?>(null) }
+    var keyBytes by rememberSaveable { mutableStateOf<ByteArray?>(null) }
+    var certName by rememberSaveable { mutableStateOf<String?>(null) }
+    var keyName by rememberSaveable { mutableStateOf<String?>(null) }
+    var applyFailure by rememberSaveable(stateSaver = ApplyFailureSaver) { mutableStateOf(null) }
+    // Deliberately not saved: both are recomputed by the LaunchedEffects below, from the picked bytes
+    // and from the certificate on disk respectively.
     var validation by remember { mutableStateOf<CertificateValidator.ValidationResult?>(null) }
     var currentInfo by remember { mutableStateOf<CertificateValidator.CertInfo?>(null) }
+    // Not saved on purpose: an apply in flight cannot survive the composition being torn down, since
+    // its result callback writes to it. Restoring "applying" would strand the spinner forever.
     var applying by remember { mutableStateOf(false) }
-    var applyFailure by remember { mutableStateOf<ApplyFailure?>(null) }
     var showResetDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -340,6 +350,24 @@ private fun checkTitle(check: CertificateValidator.Check): Int = when (check) {
 private data class ApplyFailure(
     val outcome: SyncthingService.HttpsCertReplaceResult,
     val detail: String?,
+)
+
+/**
+ * Stores an [ApplyFailure] as two plain strings so it survives a configuration change. The enum is
+ * saved by name and looked up defensively — a name that no longer exists after an app update restores
+ * as "no failure" rather than throwing during state restoration.
+ */
+private val ApplyFailureSaver = listSaver<ApplyFailure?, String>(
+    save = { failure ->
+        failure?.let { listOf(it.outcome.name, it.detail.orEmpty()) } ?: emptyList()
+    },
+    restore = { saved ->
+        saved.takeIf { it.size == 2 }?.let { (name, detail) ->
+            runCatching { SyncthingService.HttpsCertReplaceResult.valueOf(name) }
+                .getOrNull()
+                ?.let { ApplyFailure(it, detail.ifEmpty { null }) }
+        }
+    },
 )
 
 @Composable
