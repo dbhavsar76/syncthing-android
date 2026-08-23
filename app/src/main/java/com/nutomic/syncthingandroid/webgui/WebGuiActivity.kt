@@ -5,33 +5,26 @@ import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Proxy
 import android.net.Uri
 import android.net.http.SslCertificate
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.os.Parcelable
 import android.util.ArrayMap
 import android.util.Base64
 import android.util.Log
-import android.view.ViewGroup
-import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -74,32 +67,10 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
     private var caCertificate: X509Certificate? = null
     private var registeredService: SyncthingService? = null
     private var webView: WebView? = null
+    private var webGuiLoadStarted = false
     private var serviceActive = false
-
-    /**
-     * True once a load has been issued and has not failed. Cleared again by [onLoadFailed] so the
-     * next State.ACTIVE event — or the Retry button — reloads instead of leaving the screen dead.
-     */
-    private var loadIssued = false
-
-    /**
-     * Set by the error callbacks and cleared by onPageStarted. onPageFinished also runs for a
-     * failed main frame load (WebView renders its own error page), so it must not report success
-     * when this is set.
-     */
-    private var mainFrameFailed = false
-
-    /** The dead WebView after a render process crash; it is replaced on the next retry. */
-    private var webViewNeedsRecreate = false
-
-    private var loadState by mutableStateOf<WebGuiLoadState>(WebGuiLoadState.Loading)
-    private var webViewGeneration by mutableStateOf(0)
-
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val loadTimeout = Runnable {
-        Log.w(TAG, "Web GUI did not load within ${LOAD_TIMEOUT_MS} ms")
-        onLoadFailed(getString(R.string.web_gui_load_timeout))
-    }
+    private var webGuiLoading by mutableStateOf(true)
+    private var webGuiLoadError by mutableStateOf<String?>(null)
 
     private val webViewClient = object : WebViewClient() {
         override fun onReceivedSslError(
@@ -121,55 +92,23 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
         override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
             shouldOpenOutsideWebView(url.toUri())
 
-        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-            mainFrameFailed = false
-        }
-
-        // Every failure path below must clear the overlay. Reporting only onPageFinished — as this
-        // screen originally did — turns any load failure into an endless spinner with no way out.
+        // Only the initial load matters here: webGuiLoading is true until the GUI came up once.
+        // Without this the loading view is only ever dismissed by onPageFinished, so a failed load
+        // leaves the user on an endless spinner with nothing to report.
         override fun onReceivedError(
             view: WebView,
             request: WebResourceRequest,
             error: WebResourceError,
         ) {
-            if (!request.isForMainFrame) {
+            if (!request.isForMainFrame || !webGuiLoading) {
                 return
             }
             Log.w(TAG, "Web GUI load failed: ${error.errorCode} ${error.description}")
-            onLoadFailed("${error.description} (${error.errorCode})")
-        }
-
-        override fun onReceivedHttpError(
-            view: WebView,
-            request: WebResourceRequest,
-            errorResponse: WebResourceResponse,
-        ) {
-            if (!request.isForMainFrame) {
-                return
-            }
-            Log.w(TAG, "Web GUI returned HTTP ${errorResponse.statusCode}")
-            onLoadFailed(getString(R.string.web_gui_load_failed_http, errorResponse.statusCode))
-        }
-
-        // Returning false here lets the system kill the app process. Take the crash instead and
-        // offer a retry; the WebView is unusable afterwards, so it is replaced before reloading.
-        @RequiresApi(Build.VERSION_CODES.O)
-        override fun onRenderProcessGone(
-            view: WebView,
-            detail: RenderProcessGoneDetail,
-        ): Boolean {
-            Log.w(TAG, "WebView render process gone, didCrash=${detail.didCrash()}")
-            webViewNeedsRecreate = true
-            onLoadFailed(getString(R.string.web_gui_load_failed_renderer))
-            return true
+            webGuiLoadError = "${error.description} (${error.errorCode})"
         }
 
         override fun onPageFinished(view: WebView, url: String) {
-            if (mainFrameFailed) {
-                return
-            }
-            cancelLoadTimeout()
-            loadState = WebGuiLoadState.Loaded
+            webGuiLoading = false
         }
     }
 
@@ -194,26 +133,27 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
             return
         }
 
-        // Created eagerly rather than from the AndroidView factory: the factory runs during
-        // composition, i.e. after onCreate *and* onResume have returned, which means every
-        // lifecycle callback would see a null WebView on the way in.
-        webView = createWebView(this)
-
         setContent {
             ApplicationTheme {
                 WebGuiScreen(
-                    state = loadState,
+                    loading = webGuiLoading,
+                    error = webGuiLoadError,
                     onNavigateBack = { finish() },
-                    onRetry = ::retryLoad,
-                    webViewKey = webViewGeneration,
-                    webViewFactory = { detachedWebView() },
+                    webViewFactory = { context ->
+                        createWebView(context).also {
+                            webView = it
+                            // The WebView is created lazily during composition, which may run
+                            // after the service already reported ACTIVE. Attempt the load here so
+                            // we don't miss that initial state and stay stuck on the spinner.
+                            loadWebGuiIfNeeded()
+                        }
+                    },
                 )
             }
         }
 
         startSyncthingService()
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
-        scheduleLoadTimeout()
     }
 
     override fun onServiceConnected(componentName: ComponentName, binder: IBinder) {
@@ -234,8 +174,10 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
 
     // Only the per-instance WebView.onPause()/onResume() are used here. Do NOT reintroduce
     // pauseTimers()/resumeTimers(): despite being instance methods they suspend and resume the
-    // Chromium timer shared by *every* WebView in the process, so one screen pausing them stalls
-    // page loads in every WebView the app opens afterwards.
+    // Chromium timer shared by *every* WebView in the process. The WebView is created by the
+    // AndroidView factory during composition, which runs after onResume() has already returned, so
+    // webView is still null there and onResume() could never resume what a previous instance
+    // paused — every WebView opened afterwards then stalls mid-load.
     override fun onPause() {
         webView?.onPause()
         super.onPause()
@@ -247,14 +189,8 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
     }
 
     override fun onDestroy() {
-        cancelLoadTimeout()
         unregisterServiceListener()
-        // WebView.destroy() requires the view to be detached first, otherwise it can keep
-        // rendering into a torn-down surface.
-        webView?.let {
-            (it.parent as? ViewGroup)?.removeView(it)
-            it.destroy()
-        }
+        webView?.destroy()
         webView = null
         super.onDestroy()
     }
@@ -337,66 +273,17 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
         registeredService = null
     }
 
-    /**
-     * Hands the WebView to Compose. [WebGuiScreen] re-parents it, so it must not still be attached
-     * to the container of a previous [androidx.compose.ui.viewinterop.AndroidView] node.
-     */
-    private fun detachedWebView(): WebView {
-        val currentWebView = webView ?: createWebView(this).also { webView = it }
-        (currentWebView.parent as? ViewGroup)?.removeView(currentWebView)
-        return currentWebView
-    }
-
-    /** Replaces a WebView whose render process died; the old one can never be reused. */
-    private fun recreateWebView() {
-        val dead = webView
-        (dead?.parent as? ViewGroup)?.removeView(dead)
-        webView = createWebView(this)
-        webViewNeedsRecreate = false
-        webViewGeneration++
-        dead?.destroy()
-    }
-
-    private fun retryLoad() {
-        if (webViewNeedsRecreate) {
-            recreateWebView()
-        }
-        loadIssued = false
-        mainFrameFailed = false
-        loadState = WebGuiLoadState.Loading
-        scheduleLoadTimeout()
-        loadWebGuiIfNeeded()
-    }
-
-    private fun onLoadFailed(detail: String?) {
-        cancelLoadTimeout()
-        mainFrameFailed = true
-        // Allow the next State.ACTIVE event (including the replay on every onResume) to reload.
-        loadIssued = false
-        loadState = WebGuiLoadState.Failed(detail)
-    }
-
-    private fun scheduleLoadTimeout() {
-        cancelLoadTimeout()
-        mainHandler.postDelayed(loadTimeout, LOAD_TIMEOUT_MS)
-    }
-
-    private fun cancelLoadTimeout() = mainHandler.removeCallbacks(loadTimeout)
-
     private fun loadWebGuiIfNeeded() {
         val currentWebView = webView
         if (currentWebView == null) {
             Log.v(TAG, "loadWebGuiIfNeeded: Skipped event due to webView == null")
             return
         }
-        if (!serviceActive || loadIssued || webViewNeedsRecreate) {
+        if (!serviceActive || webGuiLoadStarted || currentWebView.url != null) {
             return
         }
 
-        loadIssued = true
-        mainFrameFailed = false
-        loadState = WebGuiLoadState.Loading
-        scheduleLoadTimeout()
+        webGuiLoadStarted = true
         currentWebView.stopLoading()
         setWebViewProxy(
             currentWebView.context.applicationContext,
@@ -487,12 +374,6 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
     companion object {
         private const val TAG = "WebGuiActivity"
         private const val WEB_VIEW_PROXY_EXCLUSIONS = "localhost|0.0.0.0|127.*|[::1]"
-
-        /**
-         * How long the overlay may stay up before the screen gives up and offers a retry. Generous,
-         * because it also covers syncthing still starting up (State.ACTIVE not reached yet).
-         */
-        private const val LOAD_TIMEOUT_MS = 60_000L
 
         /**
          * Set WebView proxy and sites that are not retrieved using proxy.
