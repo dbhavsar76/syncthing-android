@@ -92,9 +92,6 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
         override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
             shouldOpenOutsideWebView(url.toUri())
 
-        // Only the initial load matters here: webGuiLoading is true until the GUI came up once.
-        // Without this the loading view is only ever dismissed by onPageFinished, so a failed load
-        // leaves the user on an endless spinner with nothing to report.
         override fun onReceivedError(
             view: WebView,
             request: WebResourceRequest,
