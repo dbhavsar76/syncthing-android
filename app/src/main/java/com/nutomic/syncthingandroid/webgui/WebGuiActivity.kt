@@ -169,12 +169,6 @@ class WebGuiActivity : SyncthingActivity(), SyncthingService.OnServiceStateChang
         loadWebGuiIfNeeded()
     }
 
-    // Only the per-instance WebView.onPause()/onResume() are used here. Do NOT reintroduce
-    // pauseTimers()/resumeTimers(): despite being instance methods they suspend and resume the
-    // Chromium timer shared by *every* WebView in the process. The WebView is created by the
-    // AndroidView factory during composition, which runs after onResume() has already returned, so
-    // webView is still null there and onResume() could never resume what a previous instance
-    // paused — every WebView opened afterwards then stalls mid-load.
     override fun onPause() {
         webView?.onPause()
         super.onPause()
