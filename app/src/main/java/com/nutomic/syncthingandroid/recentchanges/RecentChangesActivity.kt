@@ -330,14 +330,6 @@ private val OFFSET_WITH_COLON = Regex("([+-]\\d{2}):(\\d{2})$")
  * Later means "has a higher event id". Deletions are indexed up front so this stays linear in the
  * number of events (times path depth) instead of comparing every event against every other.
  *
- * This replaced a three-pass O(n²) implementation in the old view-based screen. Equivalence to that
- * implementation was established with a differential fuzz — 400k random cases over two corpora, the
- * second one adversarial (double slashes, leading slashes, and sibling-prefix traps such as `ab` vs `a`
- * and `a/bc` vs `a/b`), with zero mismatches. That harness was a throwaway script and is not in the
- * repo, so the guarantee rests on this note.
- *
- * `internal` and pure on purpose: **this is the first thing worth a real unit test** if a test source
- * set is ever added to the project. It is the only non-obvious logic on this screen.
  */
 internal fun List<DiskEvent>.withoutUselessEvents(): List<DiskEvent> {
     val valid = filter { it.data != null }
